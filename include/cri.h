@@ -26,6 +26,11 @@ void cri_set_mouse_button_cb(cri_window *window, cri_mouse_button_cb cb);
 void cri_set_mouse_move_cb(cri_window *window, cri_mouse_move_cb cb);
 void cri_set_mouse_scroll_cb(cri_window *window, cri_mouse_scroll_cb cb);
 
+bool cri_open_audio(int sample_rate, int channels, cri_audio_cb cb, void *user_data);
+void cri_close_audio();
+int cri_get_audio_sample_rate();
+int cri_get_audio_channels();
+
 #ifdef __cplusplus
 }
 #endif

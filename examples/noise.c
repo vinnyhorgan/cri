@@ -5,32 +5,39 @@
 #define WIDTH 640
 #define HEIGHT 480
 
-void on_active(cri_window *window, bool is_active) {
+static void on_active(cri_window *window, bool is_active) {
     printf("Active: %s\n", is_active ? "true" : "false");
 }
 
-void on_resize(cri_window *window, int width, int height) {
+static void on_resize(cri_window *window, int width, int height) {
     printf("Resized: %dx%d\n", width, height);
 }
 
-void on_keyboard(cri_window *window, cri_key key, cri_mod_key mod, bool is_pressed) {
+static void on_keyboard(cri_window *window, cri_key key, cri_mod_key mod, bool is_pressed) {
     printf("Key: %d, Mod: %d, Pressed: %s\n", key, mod, is_pressed ? "true" : "false");
 }
 
-void on_char_input(cri_window *window, unsigned int code) {
+static void on_char_input(cri_window *window, unsigned int code) {
     printf("Char: %d\n", code);
 }
 
-void on_mouse_button(cri_window *window, cri_mouse_button button, cri_mod_key mod, bool is_pressed) {
+static void on_mouse_button(cri_window *window, cri_mouse_button button, cri_mod_key mod, bool is_pressed) {
     printf("Button: %d, Mod: %d, Pressed: %s\n", button, mod, is_pressed ? "true" : "false");
 }
 
-void on_mouse_move(cri_window *window, int x, int y) {
+static void on_mouse_move(cri_window *window, int x, int y) {
     printf("Mouse: %d, %d\n", x, y);
 }
 
-void on_mouse_scroll(cri_window *window, cri_mod_key mod, float dx, float dy) {
+static void on_mouse_scroll(cri_window *window, cri_mod_key mod, float dx, float dy) {
     printf("Scroll: %f, %f\n", dx, dy);
+}
+
+static void on_audio(float *buffer, int frames, int channels, void *user_data) {
+    static unsigned int count = 0;
+    for (int i = 0; i < frames; i++) {
+        buffer[i] = (count++ & (1<<3)) ? 0.5f : -0.5f;
+    }
 }
 
 int main() {
@@ -40,6 +47,8 @@ int main() {
     cri_window *window = cri_open("Noise", WIDTH, HEIGHT, FLAG_RESIZABLE);
     if (!window)
         return 1;
+
+    cri_open_audio(44100, 1, on_audio, NULL);
 
     cri_set_active_cb(window, on_active);
     cri_set_resize_cb(window, on_resize);
@@ -67,6 +76,8 @@ int main() {
         int state = cri_update(window, buffer);
         if (state != 0) { break; }
     }
+
+    cri_close_audio();
 
     return 0;
 }
