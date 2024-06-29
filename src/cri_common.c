@@ -8,6 +8,13 @@
 
 short int keycodes[512];
 
+double g_timer_freq;
+double g_timer_res;
+double g_time_per_frame = 1.0 / 60.0;
+
+extern uint64_t s_cri_timer_tick();
+extern void s_cri_timer_init();
+
 void cri_close(struct cri_window *window) {
     if (window) {
         s_cri_window_data *window_data = (s_cri_window_data*)window;
@@ -77,6 +84,65 @@ void cri_set_mouse_scroll_cb(cri_window *window, cri_mouse_scroll_cb cb) {
         s_cri_window_data *window_data = (s_cri_window_data*)window;
         window_data->mouse_scroll_cb = cb;
     }
+}
+
+void cri_set_target_fps(int fps) {
+    if(fps == 0) {
+        g_time_per_frame = 0;
+    } else {
+        g_time_per_frame = 1.0 / fps;
+    }
+}
+
+cri_timer *cri_timer_create() {
+    static bool first = true;
+
+    if (first) {
+        s_cri_timer_init();
+        first = false;
+    }
+
+    cri_timer *timer = malloc(sizeof(cri_timer));
+    cri_timer_reset(timer);
+
+    return timer;
+}
+
+void cri_timer_destroy(cri_timer *timer) {
+    if(timer) {
+        free(timer);
+    }
+}
+
+void cri_timer_reset(cri_timer *timer) {
+    if(!timer)
+        return;
+
+    timer->start_time = s_cri_timer_tick();
+    timer->dt_counter = timer->start_time;
+    timer->time = 0;
+}
+
+double cri_timer_now(cri_timer *timer) {
+    if(!timer)
+        return 0.0;
+
+    uint64_t counter = s_cri_timer_tick();
+    timer->time += (counter - timer->start_time);
+    timer->start_time = counter;
+
+    return timer->time * g_timer_res;
+}
+
+double cri_timer_dt(cri_timer *timer) {
+    if (!timer)
+        return 0.0;
+
+    int64_t counter = s_cri_timer_tick();
+    uint64_t dt = (counter - timer->dt_counter);
+    timer->dt_counter = counter;
+
+    return dt * g_timer_res;
 }
 
 bool cri_open_audio(int sample_rate, int channels, cri_audio_cb cb, void *user_data) {

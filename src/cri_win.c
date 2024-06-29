@@ -14,6 +14,7 @@ typedef struct {
     HDC hdc;
     BITMAPINFO *bmi;
     bool mouse_inside;
+    cri_timer *timer;
 } s_cri_window_data_win;
 
 static int s_cri_translate_mod();
@@ -252,6 +253,7 @@ cri_window *cri_open(const char *title, int width, int height, int flags) {
     window_data_win->bmi->bmiColors[2].rgbBlue = 0xff;
 
     window_data_win->hdc = GetDC(window_data_win->hwnd);
+    window_data_win->timer = cri_timer_create();
 
     return (cri_window*)window_data;
 }
@@ -298,6 +300,48 @@ bool cri_set_viewport(cri_window *window, int ox, int oy, int width, int height)
     window_data->dst_oy = oy;
     window_data->dst_width = width;
     window_data->dst_height = height;
+
+    return true;
+}
+
+extern double g_time_per_frame;
+
+bool cri_wait_sync(cri_window *window) {
+    if (!window)
+        return false;
+
+    s_cri_window_data *window_data = (s_cri_window_data*)window;
+    s_cri_window_data_win *window_data_win = (s_cri_window_data_win*)window_data->specific;
+
+    if (window_data->close) {
+        s_cri_destroy_window_data(window_data);
+        return false;
+    }
+
+    double current;
+    unsigned int milliseconds = 1;
+    MSG msg;
+    while (true) {
+        if (PeekMessage(&msg, window_data_win->hwnd, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        if (window_data->close) {
+            s_cri_destroy_window_data(window_data);
+            return false;
+        }
+
+        current = cri_timer_now(window_data_win->timer);;
+        if (current >= g_time_per_frame) {
+            cri_timer_reset(window_data_win->timer);
+            return true;
+        } else if (current >= g_time_per_frame * 0.8) {
+            milliseconds = 0;
+        }
+
+        Sleep(milliseconds);
+    }
 
     return true;
 }
@@ -488,8 +532,28 @@ static void s_cri_destroy_window_data(s_cri_window_data *window_data) {
         DestroyWindow(window_data_win->hwnd);
     }
 
+    cri_timer_destroy(window_data_win->timer);
+    window_data_win->timer = NULL;
+
     window_data_win->hwnd = NULL;
     window_data_win->hdc = NULL;
     window_data_win->bmi = NULL;
     window_data->close = true;
+}
+
+extern double g_timer_freq;
+extern double g_timer_res;
+
+uint64_t s_cri_timer_tick() {
+    int64_t counter;
+    QueryPerformanceCounter((LARGE_INTEGER*)&counter);
+    return counter;
+}
+
+void s_cri_timer_init() {
+    uint64_t frequency;
+    QueryPerformanceFrequency((LARGE_INTEGER*)&frequency);
+
+    g_timer_freq = (double)((int64_t)frequency);
+    g_timer_res = 1.0 / g_timer_freq;
 }

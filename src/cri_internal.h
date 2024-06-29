@@ -3,6 +3,8 @@
 
 #include "cri.h"
 
+#include <stdint.h>
+
 #define cri_call(cb, ...) if (window_data && window_data->cb) window_data->cb((cri_window*)window_data, __VA_ARGS__);
 
 typedef struct {
@@ -32,6 +34,12 @@ typedef struct {
     int mod_keys;
     bool close;
 } s_cri_window_data;
+
+struct cri_timer {
+    int64_t start_time;
+    int64_t dt_counter;
+    uint64_t time;
+};
 
 #ifdef __cplusplus
 extern "C" {

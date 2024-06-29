@@ -26,6 +26,15 @@ void cri_set_mouse_button_cb(cri_window *window, cri_mouse_button_cb cb);
 void cri_set_mouse_move_cb(cri_window *window, cri_mouse_move_cb cb);
 void cri_set_mouse_scroll_cb(cri_window *window, cri_mouse_scroll_cb cb);
 
+void cri_set_target_fps(int fps);
+bool cri_wait_sync(cri_window *window);
+
+cri_timer *cri_timer_create();
+void cri_timer_destroy(cri_timer *timer);
+void cri_timer_reset(cri_timer *timer);
+double cri_timer_now(cri_timer *timer);
+double cri_timer_dt(cri_timer *timer);
+
 bool cri_open_audio(int sample_rate, int channels, cri_audio_cb cb, void *user_data);
 void cri_close_audio();
 int cri_get_audio_sample_rate();

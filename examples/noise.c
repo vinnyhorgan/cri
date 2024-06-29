@@ -58,7 +58,7 @@ int main() {
     cri_set_mouse_move_cb(window, on_mouse_move);
     cri_set_mouse_scroll_cb(window, on_mouse_scroll);
 
-    while (true) {
+    do {
         int i;
 
         for (i = 0; i < WIDTH * HEIGHT; ++i) {
@@ -75,7 +75,7 @@ int main() {
 
         int state = cri_update(window, buffer);
         if (state != 0) { break; }
-    }
+    } while (cri_wait_sync(window));
 
     cri_close_audio();
 
