@@ -3,7 +3,7 @@
 
 #include "cri_enums.h"
 
-#define CRI_RGB(r, g, b) (((unsigned int)r) << 16) | (((unsigned int)g) << 8) | ((unsigned int)b)
+#define cri_rgb(r, g, b) (((unsigned int)r) << 16) | (((unsigned int)g) << 8) | ((unsigned int)b)
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,6 +39,8 @@ bool cri_open_audio(int sample_rate, int channels, cri_audio_cb cb, void *user_d
 void cri_close_audio();
 int cri_get_audio_sample_rate();
 int cri_get_audio_channels();
+
+void *cri_read_file(const char *filename, int *size);
 
 #ifdef __cplusplus
 }

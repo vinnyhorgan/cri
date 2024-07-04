@@ -17,6 +17,10 @@ typedef struct {
     cri_timer *timer;
 } s_cri_window_data_win;
 
+extern double g_timer_res;
+extern double g_time_per_frame;
+extern short int keycodes[512];
+
 static int s_cri_translate_mod();
 static cri_key s_cri_translate_key(unsigned int wparam, unsigned long lparam);
 static void s_cri_destroy_window_data(s_cri_window_data *window_data);
@@ -304,8 +308,6 @@ bool cri_set_viewport(cri_window *window, int ox, int oy, int width, int height)
     return true;
 }
 
-extern double g_time_per_frame;
-
 bool cri_wait_sync(cri_window *window) {
     if (!window)
         return false;
@@ -364,8 +366,6 @@ static int s_cri_translate_mod() {
 
     return mods;
 }
-
-extern short int keycodes[512];
 
 void init_keycodes() {
     for (int i = 0; i < sizeof(keycodes) / sizeof(keycodes[0]); i++)
@@ -541,9 +541,6 @@ static void s_cri_destroy_window_data(s_cri_window_data *window_data) {
     window_data->close = true;
 }
 
-extern double g_timer_freq;
-extern double g_timer_res;
-
 uint64_t s_cri_timer_tick() {
     int64_t counter;
     QueryPerformanceCounter((LARGE_INTEGER*)&counter);
@@ -553,7 +550,5 @@ uint64_t s_cri_timer_tick() {
 void s_cri_timer_init() {
     uint64_t frequency;
     QueryPerformanceFrequency((LARGE_INTEGER*)&frequency);
-
-    g_timer_freq = (double)((int64_t)frequency);
-    g_timer_res = 1.0 / g_timer_freq;
+    g_timer_res = 1.0 / (double)((int64_t)frequency);
 }

@@ -70,7 +70,7 @@ int main() {
             seed >>= 1;
             seed |= (carry << 30);
             noise &= 0xFF;
-            buffer[i] = CRI_RGB(noise, noise, noise);
+            buffer[i] = cri_rgb(noise, noise, noise);
         }
 
         int state = cri_update(window, buffer);

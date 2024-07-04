@@ -4,11 +4,11 @@
 #define SOKOL_AUDIO_IMPL
 #include "sokol_audio.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 
 short int keycodes[512];
 
-double g_timer_freq;
 double g_timer_res;
 double g_time_per_frame = 1.0 / 60.0;
 
@@ -166,4 +166,18 @@ int cri_get_audio_sample_rate() {
 
 int cri_get_audio_channels() {
     return saudio_channels();
+}
+
+void *cri_read_file(const char *filename, int *size) {
+    FILE *fp = fopen(filename, "rb");
+    if (!fp) { return NULL; }
+    fseek(fp, 0, SEEK_END);
+    int n = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    char *buf = calloc(n + 1, 1);
+    if (!buf) { return NULL; }
+    fread(buf, 1, n, fp);
+    fclose(fp);
+    if (size) { *size = n; }
+    return buf;
 }
