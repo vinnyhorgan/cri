@@ -2,6 +2,7 @@
 #define CRI_ENUMS_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef enum {
     MOUSE_BTN_0,
@@ -11,9 +12,12 @@ typedef enum {
     MOUSE_BTN_4,
     MOUSE_BTN_5,
     MOUSE_BTN_6,
-    MOUSE_BTN_7,
-    MOUSE_BTN_8
+    MOUSE_BTN_7
 } cri_mouse_button;
+
+#define MOUSE_LEFT MOUSE_BTN_1
+#define MOUSE_RIGHT MOUSE_BTN_2
+#define MOUSE_MIDDLE MOUSE_BTN_3
 
 typedef enum {
     KB_KEY_UNKNOWN       = -1,

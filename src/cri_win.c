@@ -17,10 +17,11 @@ typedef struct {
     cri_timer *timer;
 } s_cri_window_data_win;
 
+extern short int g_keycodes[512];
 extern double g_timer_res;
 extern double g_time_per_frame;
-extern short int keycodes[512];
 
+static void s_cri_init_keycodes();
 static int s_cri_translate_mod();
 static cri_key s_cri_translate_key(unsigned int wparam, unsigned long lparam);
 static void s_cri_destroy_window_data(s_cri_window_data *window_data);
@@ -65,18 +66,42 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
             if (key == KB_KEY_UNKNOWN)
                 return FALSE;
 
+            window_data->keyboard_state[key] = (uint8_t)is_pressed;
             cri_call(keyboard_cb, key, window_data->mod_keys, is_pressed);
         }
         break;
 
     case WM_CHAR:
     case WM_SYSCHAR:
+        static WCHAR high_surrogate = 0;
+
+        if (window_data) {
+            if (wparam >= 0xd800 && wparam <= 0xdbff) {
+                high_surrogate = (WCHAR)wparam;
+            } else {
+                unsigned int codepoint = 0;
+                if (wparam >= 0xdc00 && wparam <= 0xdfff) {
+                    if (high_surrogate != 0) {
+                        codepoint += (high_surrogate - 0xd800) << 10;
+                        codepoint += (WCHAR)wparam - 0xdc00;
+                        codepoint += 0x10000;
+                    }
+                } else {
+                    codepoint = (WCHAR)wparam;
+                }
+
+                high_surrogate = 0;
+                cri_call(char_input_cb, codepoint);
+            }
+        }
+        break;
+
     case WM_UNICHAR:
-        if(window_data) {
-            if(message == WM_UNICHAR && wparam == UNICODE_NOCHAR)
+        if (window_data) {
+            if (wparam == UNICODE_NOCHAR)
                 return TRUE;
 
-            cri_call(char_input_cb, wparam);
+            cri_call(char_input_cb, (unsigned int)wparam);
         }
         break;
 
@@ -95,23 +120,23 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
         if(window_data) {
             cri_mouse_button button = MOUSE_BTN_0;
             window_data->mod_keys = s_cri_translate_mod();
-            int is_pressed = 0;
+            bool is_pressed = false;
 
             switch(message) {
             case WM_LBUTTONDOWN:
-                is_pressed = 1;
+                is_pressed = true;
             case WM_LBUTTONUP:
                 button = MOUSE_BTN_1;
                 break;
 
             case WM_RBUTTONDOWN:
-                is_pressed = 1;
+                is_pressed = true;
             case WM_RBUTTONUP:
                 button = MOUSE_BTN_2;
                 break;
 
             case WM_MBUTTONDOWN:
-                is_pressed = 1;
+                is_pressed = true;
             case WM_MBUTTONUP:
                 button = MOUSE_BTN_3;
                 break;
@@ -119,22 +144,25 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
             default:
                 button = (GET_XBUTTON_WPARAM(wparam) == XBUTTON1 ? MOUSE_BTN_5 : MOUSE_BTN_6);
                 if(message == WM_XBUTTONDOWN)
-                    is_pressed = 1;
+                    is_pressed = true;
             }
 
+            window_data->mouse_state[button & 0x07] = (uint8_t)is_pressed;
             cri_call(mouse_button_cb, button, window_data->mod_keys, is_pressed);
         }
         break;
 
     case WM_MOUSEWHEEL:
         if(window_data) {
-            cri_call(mouse_scroll_cb, s_cri_translate_mod(), 0.0f, (SHORT)HIWORD(wparam) / (float)WHEEL_DELTA);
+            window_data->mouse_scroll_y = (SHORT)HIWORD(wparam) / (float)WHEEL_DELTA;
+            cri_call(mouse_scroll_cb, s_cri_translate_mod(), 0.0f, window_data->mouse_scroll_y);
         }
         break;
 
     case WM_MOUSEHWHEEL:
         if(window_data) {
-            cri_call(mouse_scroll_cb, s_cri_translate_mod(), -((SHORT)HIWORD(wparam) / (float)WHEEL_DELTA), 0.0f);
+            window_data->mouse_scroll_x = -((SHORT)HIWORD(wparam) / (float)WHEEL_DELTA);
+            cri_call(mouse_scroll_cb, s_cri_translate_mod(), window_data->mouse_scroll_x, 0.0f);
         }
         break;
 
@@ -150,7 +178,9 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
                 TrackMouseEvent(&tme);
             }
 
-            cri_call(mouse_move_cb, ((int)(short)LOWORD(lparam)), ((int)(short)HIWORD(lparam)));
+            window_data->mouse_x = (int)(short)LOWORD(lparam);
+            window_data->mouse_y = (int)(short)HIWORD(lparam);
+            cri_call(mouse_move_cb, window_data->mouse_x, window_data->mouse_y);
         }
         break;
 
@@ -175,12 +205,14 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
 
     case WM_SETFOCUS:
         if (window_data) {
+            window_data->is_active = true;
             cri_call(active_cb, true);
         }
         break;
 
     case WM_KILLFOCUS:
         if (window_data) {
+            window_data->is_active = false;
             cri_call(active_cb, false);
         }
         break;
@@ -193,7 +225,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
 }
 
 cri_window *cri_open(const char *title, int width, int height, int flags) {
-    init_keycodes();
+    s_cri_init_keycodes();
 
     s_cri_window_data *window_data = (s_cri_window_data*)calloc(1, sizeof(s_cri_window_data));
     s_cri_window_data_win *window_data_win = (s_cri_window_data_win*)calloc(1, sizeof(s_cri_window_data_win));
@@ -235,8 +267,11 @@ cri_window *cri_open(const char *title, int width, int height, int flags) {
     window_data->window_height = rect.bottom;
 
     window_data_win->hwnd = CreateWindowEx(0, title, title, window_style, x, y, window_data->window_width, window_data->window_height, 0, 0, 0, 0);
-    if (!window_data_win->hwnd)
+    if (!window_data_win->hwnd) {
+        free(window_data);
+        free(window_data_win);
         return NULL;
+    }
 
     BOOL dark = TRUE;
     DwmSetWindowAttribute(window_data_win->hwnd, DARK_MODE, &dark, sizeof(dark));
@@ -262,7 +297,7 @@ cri_window *cri_open(const char *title, int width, int height, int flags) {
     return (cri_window*)window_data;
 }
 
-int cri_update(cri_window *window, void *buffer) {
+int cri_update(cri_window *window, void *buffer, int width, int height) {
     if (!window)
         return 1;
 
@@ -278,7 +313,11 @@ int cri_update(cri_window *window, void *buffer) {
         return 1;
 
     window_data->buffer = buffer;
+    window_data->buffer_width = width;
+    window_data->buffer_height = height;
 
+    window_data_win->bmi->bmiHeader.biWidth = width;
+    window_data_win->bmi->bmiHeader.biHeight = -(LONG)height;
     InvalidateRect(window_data_win->hwnd, NULL, TRUE);
     SendMessage(window_data_win->hwnd, WM_PAINT, 0, 0);
 
@@ -321,31 +360,157 @@ bool cri_wait_sync(cri_window *window) {
     }
 
     double current;
-    unsigned int milliseconds = 1;
     MSG msg;
     while (true) {
-        if (PeekMessage(&msg, window_data_win->hwnd, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-
-        if (window_data->close) {
-            s_cri_destroy_window_data(window_data);
-            return false;
-        }
-
-        current = cri_timer_now(window_data_win->timer);;
+        current = cri_timer_now(window_data_win->timer);
         if (current >= g_time_per_frame) {
             cri_timer_reset(window_data_win->timer);
             return true;
-        } else if (current >= g_time_per_frame * 0.8) {
-            milliseconds = 0;
-        }
+        } else if (g_time_per_frame - current > 2.0 / 1000.0) {
+            timeBeginPeriod(1);
+            Sleep(1);
+            timeEndPeriod(1);
 
-        Sleep(milliseconds);
+            if (PeekMessage(&msg, window_data_win->hwnd, 0, 0, PM_REMOVE)) {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+
+                if (window_data->close) {
+                    s_cri_destroy_window_data(window_data);
+                    return false;
+                }
+            }
+        }
     }
 
     return true;
+}
+
+static void s_cri_init_keycodes() {
+    for (int i = 0; i < sizeof(g_keycodes) / sizeof(g_keycodes[0]); i++)
+        g_keycodes[i] = 0;
+
+    g_keycodes[0x00B] = KB_KEY_0;
+    g_keycodes[0x002] = KB_KEY_1;
+    g_keycodes[0x003] = KB_KEY_2;
+    g_keycodes[0x004] = KB_KEY_3;
+    g_keycodes[0x005] = KB_KEY_4;
+    g_keycodes[0x006] = KB_KEY_5;
+    g_keycodes[0x007] = KB_KEY_6;
+    g_keycodes[0x008] = KB_KEY_7;
+    g_keycodes[0x009] = KB_KEY_8;
+    g_keycodes[0x00A] = KB_KEY_9;
+    g_keycodes[0x01E] = KB_KEY_A;
+    g_keycodes[0x030] = KB_KEY_B;
+    g_keycodes[0x02E] = KB_KEY_C;
+    g_keycodes[0x020] = KB_KEY_D;
+    g_keycodes[0x012] = KB_KEY_E;
+    g_keycodes[0x021] = KB_KEY_F;
+    g_keycodes[0x022] = KB_KEY_G;
+    g_keycodes[0x023] = KB_KEY_H;
+    g_keycodes[0x017] = KB_KEY_I;
+    g_keycodes[0x024] = KB_KEY_J;
+    g_keycodes[0x025] = KB_KEY_K;
+    g_keycodes[0x026] = KB_KEY_L;
+    g_keycodes[0x032] = KB_KEY_M;
+    g_keycodes[0x031] = KB_KEY_N;
+    g_keycodes[0x018] = KB_KEY_O;
+    g_keycodes[0x019] = KB_KEY_P;
+    g_keycodes[0x010] = KB_KEY_Q;
+    g_keycodes[0x013] = KB_KEY_R;
+    g_keycodes[0x01F] = KB_KEY_S;
+    g_keycodes[0x014] = KB_KEY_T;
+    g_keycodes[0x016] = KB_KEY_U;
+    g_keycodes[0x02F] = KB_KEY_V;
+    g_keycodes[0x011] = KB_KEY_W;
+    g_keycodes[0x02D] = KB_KEY_X;
+    g_keycodes[0x015] = KB_KEY_Y;
+    g_keycodes[0x02C] = KB_KEY_Z;
+
+    g_keycodes[0x028] = KB_KEY_APOSTROPHE;
+    g_keycodes[0x02B] = KB_KEY_BACKSLASH;
+    g_keycodes[0x033] = KB_KEY_COMMA;
+    g_keycodes[0x00D] = KB_KEY_EQUAL;
+    g_keycodes[0x029] = KB_KEY_GRAVE_ACCENT;
+    g_keycodes[0x01A] = KB_KEY_LEFT_BRACKET;
+    g_keycodes[0x00C] = KB_KEY_MINUS;
+    g_keycodes[0x034] = KB_KEY_PERIOD;
+    g_keycodes[0x01B] = KB_KEY_RIGHT_BRACKET;
+    g_keycodes[0x027] = KB_KEY_SEMICOLON;
+    g_keycodes[0x035] = KB_KEY_SLASH;
+    g_keycodes[0x056] = KB_KEY_WORLD_2;
+
+    g_keycodes[0x00E] = KB_KEY_BACKSPACE;
+    g_keycodes[0x153] = KB_KEY_DELETE;
+    g_keycodes[0x14F] = KB_KEY_END;
+    g_keycodes[0x01C] = KB_KEY_ENTER;
+    g_keycodes[0x001] = KB_KEY_ESCAPE;
+    g_keycodes[0x147] = KB_KEY_HOME;
+    g_keycodes[0x152] = KB_KEY_INSERT;
+    g_keycodes[0x15D] = KB_KEY_MENU;
+    g_keycodes[0x151] = KB_KEY_PAGE_DOWN;
+    g_keycodes[0x149] = KB_KEY_PAGE_UP;
+    g_keycodes[0x045] = KB_KEY_PAUSE;
+    g_keycodes[0x146] = KB_KEY_PAUSE;
+    g_keycodes[0x039] = KB_KEY_SPACE;
+    g_keycodes[0x00F] = KB_KEY_TAB;
+    g_keycodes[0x03A] = KB_KEY_CAPS_LOCK;
+    g_keycodes[0x145] = KB_KEY_NUM_LOCK;
+    g_keycodes[0x046] = KB_KEY_SCROLL_LOCK;
+    g_keycodes[0x03B] = KB_KEY_F1;
+    g_keycodes[0x03C] = KB_KEY_F2;
+    g_keycodes[0x03D] = KB_KEY_F3;
+    g_keycodes[0x03E] = KB_KEY_F4;
+    g_keycodes[0x03F] = KB_KEY_F5;
+    g_keycodes[0x040] = KB_KEY_F6;
+    g_keycodes[0x041] = KB_KEY_F7;
+    g_keycodes[0x042] = KB_KEY_F8;
+    g_keycodes[0x043] = KB_KEY_F9;
+    g_keycodes[0x044] = KB_KEY_F10;
+    g_keycodes[0x057] = KB_KEY_F11;
+    g_keycodes[0x058] = KB_KEY_F12;
+    g_keycodes[0x064] = KB_KEY_F13;
+    g_keycodes[0x065] = KB_KEY_F14;
+    g_keycodes[0x066] = KB_KEY_F15;
+    g_keycodes[0x067] = KB_KEY_F16;
+    g_keycodes[0x068] = KB_KEY_F17;
+    g_keycodes[0x069] = KB_KEY_F18;
+    g_keycodes[0x06A] = KB_KEY_F19;
+    g_keycodes[0x06B] = KB_KEY_F20;
+    g_keycodes[0x06C] = KB_KEY_F21;
+    g_keycodes[0x06D] = KB_KEY_F22;
+    g_keycodes[0x06E] = KB_KEY_F23;
+    g_keycodes[0x076] = KB_KEY_F24;
+    g_keycodes[0x038] = KB_KEY_LEFT_ALT;
+    g_keycodes[0x01D] = KB_KEY_LEFT_CONTROL;
+    g_keycodes[0x02A] = KB_KEY_LEFT_SHIFT;
+    g_keycodes[0x15B] = KB_KEY_LEFT_SUPER;
+    g_keycodes[0x137] = KB_KEY_PRINT_SCREEN;
+    g_keycodes[0x138] = KB_KEY_RIGHT_ALT;
+    g_keycodes[0x11D] = KB_KEY_RIGHT_CONTROL;
+    g_keycodes[0x036] = KB_KEY_RIGHT_SHIFT;
+    g_keycodes[0x15C] = KB_KEY_RIGHT_SUPER;
+    g_keycodes[0x150] = KB_KEY_DOWN;
+    g_keycodes[0x14B] = KB_KEY_LEFT;
+    g_keycodes[0x14D] = KB_KEY_RIGHT;
+    g_keycodes[0x148] = KB_KEY_UP;
+
+    g_keycodes[0x052] = KB_KEY_KP_0;
+    g_keycodes[0x04F] = KB_KEY_KP_1;
+    g_keycodes[0x050] = KB_KEY_KP_2;
+    g_keycodes[0x051] = KB_KEY_KP_3;
+    g_keycodes[0x04B] = KB_KEY_KP_4;
+    g_keycodes[0x04C] = KB_KEY_KP_5;
+    g_keycodes[0x04D] = KB_KEY_KP_6;
+    g_keycodes[0x047] = KB_KEY_KP_7;
+    g_keycodes[0x048] = KB_KEY_KP_8;
+    g_keycodes[0x049] = KB_KEY_KP_9;
+    g_keycodes[0x04E] = KB_KEY_KP_ADD;
+    g_keycodes[0x053] = KB_KEY_KP_DECIMAL;
+    g_keycodes[0x135] = KB_KEY_KP_DIVIDE;
+    g_keycodes[0x11C] = KB_KEY_KP_ENTER;
+    g_keycodes[0x037] = KB_KEY_KP_MULTIPLY;
+    g_keycodes[0x04A] = KB_KEY_KP_SUBTRACT;
 }
 
 static int s_cri_translate_mod() {
@@ -365,133 +530,6 @@ static int s_cri_translate_mod() {
         mods |= KB_MOD_NUM_LOCK;
 
     return mods;
-}
-
-void init_keycodes() {
-    for (int i = 0; i < sizeof(keycodes) / sizeof(keycodes[0]); i++)
-        keycodes[i] = 0;
-
-    keycodes[0x00B] = KB_KEY_0;
-    keycodes[0x002] = KB_KEY_1;
-    keycodes[0x003] = KB_KEY_2;
-    keycodes[0x004] = KB_KEY_3;
-    keycodes[0x005] = KB_KEY_4;
-    keycodes[0x006] = KB_KEY_5;
-    keycodes[0x007] = KB_KEY_6;
-    keycodes[0x008] = KB_KEY_7;
-    keycodes[0x009] = KB_KEY_8;
-    keycodes[0x00A] = KB_KEY_9;
-    keycodes[0x01E] = KB_KEY_A;
-    keycodes[0x030] = KB_KEY_B;
-    keycodes[0x02E] = KB_KEY_C;
-    keycodes[0x020] = KB_KEY_D;
-    keycodes[0x012] = KB_KEY_E;
-    keycodes[0x021] = KB_KEY_F;
-    keycodes[0x022] = KB_KEY_G;
-    keycodes[0x023] = KB_KEY_H;
-    keycodes[0x017] = KB_KEY_I;
-    keycodes[0x024] = KB_KEY_J;
-    keycodes[0x025] = KB_KEY_K;
-    keycodes[0x026] = KB_KEY_L;
-    keycodes[0x032] = KB_KEY_M;
-    keycodes[0x031] = KB_KEY_N;
-    keycodes[0x018] = KB_KEY_O;
-    keycodes[0x019] = KB_KEY_P;
-    keycodes[0x010] = KB_KEY_Q;
-    keycodes[0x013] = KB_KEY_R;
-    keycodes[0x01F] = KB_KEY_S;
-    keycodes[0x014] = KB_KEY_T;
-    keycodes[0x016] = KB_KEY_U;
-    keycodes[0x02F] = KB_KEY_V;
-    keycodes[0x011] = KB_KEY_W;
-    keycodes[0x02D] = KB_KEY_X;
-    keycodes[0x015] = KB_KEY_Y;
-    keycodes[0x02C] = KB_KEY_Z;
-
-    keycodes[0x028] = KB_KEY_APOSTROPHE;
-    keycodes[0x02B] = KB_KEY_BACKSLASH;
-    keycodes[0x033] = KB_KEY_COMMA;
-    keycodes[0x00D] = KB_KEY_EQUAL;
-    keycodes[0x029] = KB_KEY_GRAVE_ACCENT;
-    keycodes[0x01A] = KB_KEY_LEFT_BRACKET;
-    keycodes[0x00C] = KB_KEY_MINUS;
-    keycodes[0x034] = KB_KEY_PERIOD;
-    keycodes[0x01B] = KB_KEY_RIGHT_BRACKET;
-    keycodes[0x027] = KB_KEY_SEMICOLON;
-    keycodes[0x035] = KB_KEY_SLASH;
-    keycodes[0x056] = KB_KEY_WORLD_2;
-
-    keycodes[0x00E] = KB_KEY_BACKSPACE;
-    keycodes[0x153] = KB_KEY_DELETE;
-    keycodes[0x14F] = KB_KEY_END;
-    keycodes[0x01C] = KB_KEY_ENTER;
-    keycodes[0x001] = KB_KEY_ESCAPE;
-    keycodes[0x147] = KB_KEY_HOME;
-    keycodes[0x152] = KB_KEY_INSERT;
-    keycodes[0x15D] = KB_KEY_MENU;
-    keycodes[0x151] = KB_KEY_PAGE_DOWN;
-    keycodes[0x149] = KB_KEY_PAGE_UP;
-    keycodes[0x045] = KB_KEY_PAUSE;
-    keycodes[0x146] = KB_KEY_PAUSE;
-    keycodes[0x039] = KB_KEY_SPACE;
-    keycodes[0x00F] = KB_KEY_TAB;
-    keycodes[0x03A] = KB_KEY_CAPS_LOCK;
-    keycodes[0x145] = KB_KEY_NUM_LOCK;
-    keycodes[0x046] = KB_KEY_SCROLL_LOCK;
-    keycodes[0x03B] = KB_KEY_F1;
-    keycodes[0x03C] = KB_KEY_F2;
-    keycodes[0x03D] = KB_KEY_F3;
-    keycodes[0x03E] = KB_KEY_F4;
-    keycodes[0x03F] = KB_KEY_F5;
-    keycodes[0x040] = KB_KEY_F6;
-    keycodes[0x041] = KB_KEY_F7;
-    keycodes[0x042] = KB_KEY_F8;
-    keycodes[0x043] = KB_KEY_F9;
-    keycodes[0x044] = KB_KEY_F10;
-    keycodes[0x057] = KB_KEY_F11;
-    keycodes[0x058] = KB_KEY_F12;
-    keycodes[0x064] = KB_KEY_F13;
-    keycodes[0x065] = KB_KEY_F14;
-    keycodes[0x066] = KB_KEY_F15;
-    keycodes[0x067] = KB_KEY_F16;
-    keycodes[0x068] = KB_KEY_F17;
-    keycodes[0x069] = KB_KEY_F18;
-    keycodes[0x06A] = KB_KEY_F19;
-    keycodes[0x06B] = KB_KEY_F20;
-    keycodes[0x06C] = KB_KEY_F21;
-    keycodes[0x06D] = KB_KEY_F22;
-    keycodes[0x06E] = KB_KEY_F23;
-    keycodes[0x076] = KB_KEY_F24;
-    keycodes[0x038] = KB_KEY_LEFT_ALT;
-    keycodes[0x01D] = KB_KEY_LEFT_CONTROL;
-    keycodes[0x02A] = KB_KEY_LEFT_SHIFT;
-    keycodes[0x15B] = KB_KEY_LEFT_SUPER;
-    keycodes[0x137] = KB_KEY_PRINT_SCREEN;
-    keycodes[0x138] = KB_KEY_RIGHT_ALT;
-    keycodes[0x11D] = KB_KEY_RIGHT_CONTROL;
-    keycodes[0x036] = KB_KEY_RIGHT_SHIFT;
-    keycodes[0x15C] = KB_KEY_RIGHT_SUPER;
-    keycodes[0x150] = KB_KEY_DOWN;
-    keycodes[0x14B] = KB_KEY_LEFT;
-    keycodes[0x14D] = KB_KEY_RIGHT;
-    keycodes[0x148] = KB_KEY_UP;
-
-    keycodes[0x052] = KB_KEY_KP_0;
-    keycodes[0x04F] = KB_KEY_KP_1;
-    keycodes[0x050] = KB_KEY_KP_2;
-    keycodes[0x051] = KB_KEY_KP_3;
-    keycodes[0x04B] = KB_KEY_KP_4;
-    keycodes[0x04C] = KB_KEY_KP_5;
-    keycodes[0x04D] = KB_KEY_KP_6;
-    keycodes[0x047] = KB_KEY_KP_7;
-    keycodes[0x048] = KB_KEY_KP_8;
-    keycodes[0x049] = KB_KEY_KP_9;
-    keycodes[0x04E] = KB_KEY_KP_ADD;
-    keycodes[0x053] = KB_KEY_KP_DECIMAL;
-    keycodes[0x135] = KB_KEY_KP_DIVIDE;
-    keycodes[0x11C] = KB_KEY_KP_ENTER;
-    keycodes[0x037] = KB_KEY_KP_MULTIPLY;
-    keycodes[0x04A] = KB_KEY_KP_SUBTRACT;
 }
 
 static cri_key s_cri_translate_key(unsigned int wparam, unsigned long lparam) {
@@ -514,7 +552,7 @@ static cri_key s_cri_translate_key(unsigned int wparam, unsigned long lparam) {
     if (wparam == VK_PROCESSKEY)
         return KB_KEY_UNKNOWN;
 
-    return (cri_key)keycodes[HIWORD(lparam) & 0x1FF];
+    return (cri_key)g_keycodes[HIWORD(lparam) & 0x1FF];
 }
 
 static void s_cri_destroy_window_data(s_cri_window_data *window_data) {

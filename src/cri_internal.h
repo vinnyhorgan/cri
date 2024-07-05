@@ -3,8 +3,6 @@
 
 #include "cri.h"
 
-#include <stdint.h>
-
 #define cri_call(cb, ...) if (window_data && window_data->cb) window_data->cb((cri_window*)window_data, __VA_ARGS__);
 
 typedef struct {
@@ -31,6 +29,14 @@ typedef struct {
     int buffer_width;
     int buffer_height;
 
+    bool is_active;
+    int mouse_x;
+    int mouse_y;
+    float mouse_scroll_x;
+    float mouse_scroll_y;
+    uint8_t keyboard_state[512];
+    uint8_t mouse_state[8];
+
     int mod_keys;
     bool close;
 } s_cri_window_data;
@@ -41,15 +47,6 @@ struct cri_timer {
     uint64_t time;
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-extern short int keycodes[512];
-void init_keycodes();
-
-#ifdef __cplusplus
-}
-#endif
+extern short int g_keycodes[512];
 
 #endif

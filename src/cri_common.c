@@ -7,8 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-short int keycodes[512];
-
+short int g_keycodes[512];
 double g_timer_res;
 double g_time_per_frame = 1.0 / 60.0;
 
@@ -35,6 +34,20 @@ void *cri_get_user_data(struct cri_window *window) {
         return window_data->user_data;
     }
     return NULL;
+}
+
+void *cri_read_file(const char *filename, int *size) {
+    FILE *fp = fopen(filename, "rb");
+    if (!fp) { return NULL; }
+    fseek(fp, 0, SEEK_END);
+    int n = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    char *buf = calloc(n + 1, 1);
+    if (!buf) { return NULL; }
+    fread(buf, 1, n, fp);
+    fclose(fp);
+    if (size) { *size = n; }
+    return buf;
 }
 
 void cri_set_active_cb(cri_window *window, cri_active_cb cb) {
@@ -84,6 +97,78 @@ void cri_set_mouse_scroll_cb(cri_window *window, cri_mouse_scroll_cb cb) {
         s_cri_window_data *window_data = (s_cri_window_data*)window;
         window_data->mouse_scroll_cb = cb;
     }
+}
+
+bool cri_is_window_active(cri_window *window) {
+    if (window) {
+        s_cri_window_data *window_data = (s_cri_window_data*)window;
+        return window_data->is_active;
+    }
+    return false;
+}
+
+int cri_get_window_width(cri_window *window) {
+    if (window) {
+        s_cri_window_data *window_data = (s_cri_window_data*)window;
+        return window_data->window_width;
+    }
+    return 0;
+}
+
+int cri_get_window_height(cri_window *window) {
+    if (window) {
+        s_cri_window_data *window_data = (s_cri_window_data*)window;
+        return window_data->window_height;
+    }
+    return 0;
+}
+
+int cri_get_mouse_x(cri_window *window) {
+    if (window) {
+        s_cri_window_data *window_data = (s_cri_window_data*)window;
+        return window_data->mouse_x;
+    }
+    return 0;
+}
+
+int cri_get_mouse_y(cri_window *window) {
+    if (window) {
+        s_cri_window_data *window_data = (s_cri_window_data*)window;
+        return window_data->mouse_y;
+    }
+    return 0;
+}
+
+float cri_get_mouse_scroll_x(cri_window *window) {
+    if (window) {
+        s_cri_window_data *window_data = (s_cri_window_data*)window;
+        return window_data->mouse_scroll_x;
+    }
+    return 0;
+}
+
+float cri_get_mouse_scroll_y(cri_window *window) {
+    if (window) {
+        s_cri_window_data *window_data = (s_cri_window_data*)window;
+        return window_data->mouse_scroll_y;
+    }
+    return 0;
+}
+
+const uint8_t *cri_get_keyboard_state(cri_window *window) {
+    if (window) {
+        s_cri_window_data *window_data = (s_cri_window_data*)window;
+        return window_data->keyboard_state;
+    }
+    return NULL;
+}
+
+const uint8_t *cri_get_mouse_state(cri_window *window) {
+    if (window) {
+        s_cri_window_data *window_data = (s_cri_window_data*)window;
+        return window_data->mouse_state;
+    }
+    return NULL;
 }
 
 void cri_set_target_fps(int fps) {
@@ -166,18 +251,4 @@ int cri_get_audio_sample_rate() {
 
 int cri_get_audio_channels() {
     return saudio_channels();
-}
-
-void *cri_read_file(const char *filename, int *size) {
-    FILE *fp = fopen(filename, "rb");
-    if (!fp) { return NULL; }
-    fseek(fp, 0, SEEK_END);
-    int n = ftell(fp);
-    fseek(fp, 0, SEEK_SET);
-    char *buf = calloc(n + 1, 1);
-    if (!buf) { return NULL; }
-    fread(buf, 1, n, fp);
-    fclose(fp);
-    if (size) { *size = n; }
-    return buf;
 }
