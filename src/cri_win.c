@@ -58,7 +58,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
     case WM_SYSKEYDOWN:
     case WM_KEYUP:
     case WM_SYSKEYUP:
-        if(window_data) {
+        if (window_data) {
             cri_key key = s_cri_translate_key((unsigned int)wparam, (unsigned long)lparam);
             int is_pressed = !((lparam >> 31) & 1);
             window_data->mod_keys = s_cri_translate_mod();
@@ -117,7 +117,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
     case WM_MBUTTONDBLCLK:
     case WM_XBUTTONDOWN:
     case WM_XBUTTONDBLCLK:
-        if(window_data) {
+        if (window_data) {
             cri_mouse_button button = MOUSE_BTN_0;
             window_data->mod_keys = s_cri_translate_mod();
             bool is_pressed = false;
@@ -143,7 +143,7 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
 
             default:
                 button = (GET_XBUTTON_WPARAM(wparam) == XBUTTON1 ? MOUSE_BTN_5 : MOUSE_BTN_6);
-                if(message == WM_XBUTTONDOWN)
+                if (message == WM_XBUTTONDOWN)
                     is_pressed = true;
             }
 
@@ -153,22 +153,22 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
         break;
 
     case WM_MOUSEWHEEL:
-        if(window_data) {
+        if (window_data) {
             window_data->mouse_scroll_y = (SHORT)HIWORD(wparam) / (float)WHEEL_DELTA;
             cri_call(mouse_scroll_cb, s_cri_translate_mod(), 0.0f, window_data->mouse_scroll_y);
         }
         break;
 
     case WM_MOUSEHWHEEL:
-        if(window_data) {
+        if (window_data) {
             window_data->mouse_scroll_x = -((SHORT)HIWORD(wparam) / (float)WHEEL_DELTA);
             cri_call(mouse_scroll_cb, s_cri_translate_mod(), window_data->mouse_scroll_x, 0.0f);
         }
         break;
 
     case WM_MOUSEMOVE:
-        if(window_data) {
-            if(window_data_win->mouse_inside == false) {
+        if (window_data) {
+            if (window_data_win->mouse_inside == false) {
                 window_data_win->mouse_inside = true;
                 TRACKMOUSEEVENT tme;
                 ZeroMemory(&tme, sizeof(tme));
@@ -185,13 +185,13 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
         break;
 
     case WM_MOUSELEAVE:
-        if(window_data) {
+        if (window_data) {
             window_data_win->mouse_inside = false;
         }
         break;
 
     case WM_SIZE:
-        if(window_data) {
+        if (window_data) {
             window_data->dst_ox = 0;
             window_data->dst_oy = 0;
             window_data->dst_width = LOWORD(lparam);
@@ -556,16 +556,16 @@ static cri_key s_cri_translate_key(unsigned int wparam, unsigned long lparam) {
 }
 
 static void s_cri_destroy_window_data(s_cri_window_data *window_data) {
-    if(window_data == NULL)
+    if (window_data == NULL)
         return;
 
     s_cri_window_data_win *window_data_win = (s_cri_window_data_win*)window_data->specific;
 
     window_data->buffer = NULL;
-    if(window_data_win->bmi)
+    if (window_data_win->bmi)
         free(window_data_win->bmi);
 
-    if(window_data_win->hwnd && window_data_win->hdc) {
+    if (window_data_win->hwnd && window_data_win->hdc) {
         ReleaseDC(window_data_win->hwnd, window_data_win->hdc);
         DestroyWindow(window_data_win->hwnd);
     }
@@ -579,14 +579,14 @@ static void s_cri_destroy_window_data(s_cri_window_data *window_data) {
     window_data->close = true;
 }
 
-uint64_t s_cri_timer_tick() {
-    int64_t counter;
-    QueryPerformanceCounter((LARGE_INTEGER*)&counter);
-    return counter;
-}
-
 void s_cri_timer_init() {
     uint64_t frequency;
     QueryPerformanceFrequency((LARGE_INTEGER*)&frequency);
     g_timer_res = 1.0 / (double)((int64_t)frequency);
+}
+
+uint64_t s_cri_timer_tick() {
+    int64_t counter;
+    QueryPerformanceCounter((LARGE_INTEGER*)&counter);
+    return counter;
 }

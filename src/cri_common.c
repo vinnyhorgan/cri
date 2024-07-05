@@ -11,24 +11,24 @@ short int g_keycodes[512];
 double g_timer_res;
 double g_time_per_frame = 1.0 / 60.0;
 
-extern uint64_t s_cri_timer_tick();
 extern void s_cri_timer_init();
+extern uint64_t s_cri_timer_tick();
 
-void cri_close(struct cri_window *window) {
+void cri_close(cri_window *window) {
     if (window) {
         s_cri_window_data *window_data = (s_cri_window_data*)window;
         window_data->close = true;
     }
 }
 
-void cri_set_user_data(struct cri_window *window, void *user_data) {
+void cri_set_user_data(cri_window *window, void *user_data) {
     if (window) {
         s_cri_window_data *window_data = (s_cri_window_data*)window;
         window_data->user_data = user_data;
     }
 }
 
-void *cri_get_user_data(struct cri_window *window) {
+void *cri_get_user_data(cri_window *window) {
     if (window) {
         s_cri_window_data *window_data = (s_cri_window_data*)window;
         return window_data->user_data;
@@ -172,7 +172,7 @@ const uint8_t *cri_get_mouse_state(cri_window *window) {
 }
 
 void cri_set_target_fps(int fps) {
-    if(fps == 0) {
+    if (fps == 0) {
         g_time_per_frame = 0;
     } else {
         g_time_per_frame = 1.0 / fps;
@@ -194,13 +194,13 @@ cri_timer *cri_timer_create() {
 }
 
 void cri_timer_destroy(cri_timer *timer) {
-    if(timer) {
+    if (timer) {
         free(timer);
     }
 }
 
 void cri_timer_reset(cri_timer *timer) {
-    if(!timer)
+    if (!timer)
         return;
 
     timer->start_time = s_cri_timer_tick();
@@ -209,7 +209,7 @@ void cri_timer_reset(cri_timer *timer) {
 }
 
 double cri_timer_now(cri_timer *timer) {
-    if(!timer)
+    if (!timer)
         return 0.0;
 
     uint64_t counter = s_cri_timer_tick();
