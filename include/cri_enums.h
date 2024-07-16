@@ -155,7 +155,8 @@ typedef enum {
 } cri_mod_key;
 
 typedef enum {
-    FLAG_RESIZABLE = 0x01
+    FLAG_RESIZABLE = 0x01,
+    FLAG_HIDECURSOR = 0x02
 } cri_flags;
 
 struct cri_window;

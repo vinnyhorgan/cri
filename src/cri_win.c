@@ -217,6 +217,14 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
         }
         break;
 
+    case WM_SETCURSOR:
+        if (window_data->hide_cursor && LOWORD(lparam) == HTCLIENT) {
+            SetCursor(0);
+            break;
+        }
+
+        // fallthrough
+
     default:
         res = DefWindowProc(hwnd, message, wparam, lparam);
     }
@@ -238,6 +246,8 @@ cri_window *cri_open(const char *title, int width, int height, int flags) {
 
     if (flags & FLAG_RESIZABLE)
         window_style |= WS_MAXIMIZEBOX | WS_SIZEBOX;
+
+    window_data->hide_cursor = !!(flags & FLAG_HIDECURSOR);
 
     RECT rect = {0};
     int x, y;

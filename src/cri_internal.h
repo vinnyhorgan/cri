@@ -39,6 +39,7 @@ typedef struct {
 
     int mod_keys;
     bool close;
+    bool hide_cursor;
 } s_cri_window_data;
 
 struct cri_timer {
