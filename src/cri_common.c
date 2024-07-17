@@ -6,6 +6,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+#include <sys/stat.h>
+
+#ifdef _WIN32
+#include "dirent.h"
+#else
+#include <dirent.h>
+#endif
 
 short int g_keycodes[512];
 double g_timer_res;
@@ -42,12 +51,91 @@ void *cri_read_file(const char *filename, int *size) {
     fseek(fp, 0, SEEK_END);
     int n = ftell(fp);
     fseek(fp, 0, SEEK_SET);
-    char *buf = calloc(n + 1, 1);
+    char *buf = (char*)calloc(n + 1, 1);
     if (!buf) { return NULL; }
     fread(buf, 1, n, fp);
     fclose(fp);
     if (size) { *size = n; }
     return buf;
+}
+
+void cri_write_file(const char *filename, const void *data, int size) {
+    FILE *fp = fopen(filename, "wb");
+    if (!fp) { return; }
+    fwrite(data, 1, size, fp);
+    fclose(fp);
+}
+
+bool cri_file_exists(const char *filename) {
+    struct stat st;
+    return stat(filename, &st) == 0;
+}
+
+bool cri_dir_exists(const char *dirname) {
+    DIR *dir = opendir(dirname);
+    if (!dir) { return false; }
+    closedir(dir);
+    return true;
+}
+
+int cri_get_file_size(const char *filename) {
+    struct stat st;
+    if (stat(filename, &st) == 0) { return st.st_size; }
+    return -1;
+}
+
+long cri_get_file_mod_time(const char *filename) {
+    struct stat st;
+    if (stat(filename, &st) == 0) { return st.st_mtime; }
+    return -1;
+}
+
+char **cri_get_dir_files(const char *dirname, int *count) {
+    DIR *dir = opendir(dirname);
+    if (!dir) { return NULL; }
+
+    struct dirent *entry;
+    int n = 0;
+    while ((entry = readdir(dir))) {
+        if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")) {
+            n++;
+        }
+    }
+    closedir(dir);
+
+    char **files = (char**)malloc(n * sizeof(char*));
+    if (!files) { return NULL; }
+
+    dir = opendir(dirname);
+    if (!dir) {
+        free(files);
+        return NULL;
+    }
+
+    int i = 0;
+    while ((entry = readdir(dir))) {
+        if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")) {
+            files[i] = strdup(entry->d_name);
+            if (!files[i]) {
+                free(files);
+                closedir(dir);
+                return NULL;
+            }
+            i++;
+        }
+    }
+    closedir(dir);
+
+    *count = n;
+
+    return files;
+}
+
+void cri_free_dir_files(char **files, int count) {
+    for (int i = 0; i < count; i++) {
+        free(files[i]);
+    }
+    free(files);
 }
 
 void cri_set_active_cb(cri_window *window, cri_active_cb cb) {
@@ -187,7 +275,7 @@ cri_timer *cri_timer_create() {
         first = false;
     }
 
-    cri_timer *timer = malloc(sizeof(cri_timer));
+    cri_timer *timer = (cri_timer*)malloc(sizeof(cri_timer));
     cri_timer_reset(timer);
 
     return timer;

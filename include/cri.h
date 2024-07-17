@@ -19,6 +19,13 @@ void *cri_get_user_data(cri_window *window);
 
 bool cri_set_viewport(cri_window *window, int ox, int oy, int width, int height);
 void *cri_read_file(const char *filename, int *size);
+void cri_write_file(const char *filename, const void *data, int size);
+bool cri_file_exists(const char *filename);
+bool cri_dir_exists(const char *dirname);
+int cri_get_file_size(const char *filename);
+long cri_get_file_mod_time(const char *filename);
+char **cri_get_dir_files(const char *dirname, int *count);
+void cri_free_dir_files(char **files, int count);
 
 void cri_set_active_cb(cri_window *window, cri_active_cb cb);
 void cri_set_resize_cb(cri_window *window, cri_resize_cb cb);
