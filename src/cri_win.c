@@ -5,6 +5,7 @@
 #include <dwmapi.h>
 
 #include <stdlib.h>
+#include <string.h>
 
 #define DARK_MODE 20
 
@@ -355,6 +356,57 @@ bool cri_set_viewport(cri_window *window, int ox, int oy, int width, int height)
     window_data->dst_height = height;
 
     return true;
+}
+
+void cri_set_clipboard_text(const char *text) {
+    int len = strlen(text) + 1;
+
+    HANDLE object = GlobalAlloc(GMEM_MOVEABLE, len);
+    if (!object)
+        return;
+
+    char *buffer = (char*)GlobalLock(object);
+    if (!buffer) {
+        GlobalFree(object);
+        return;
+    }
+
+    memcpy(buffer, text, len);
+    GlobalUnlock(object);
+
+    if (!OpenClipboard(NULL))
+        return;
+
+    EmptyClipboard();
+    SetClipboardData(CF_TEXT, object);
+    CloseClipboard();
+}
+
+const char *cri_get_clipboard_text() {
+    if (!OpenClipboard(NULL))
+        return NULL;
+
+    HANDLE object = GetClipboardData(CF_TEXT);
+    if (!object) {
+        CloseClipboard();
+        return NULL;
+    }
+
+    char *buffer = (char*)GlobalLock(object);
+    if (!buffer) {
+        CloseClipboard();
+        return NULL;
+    }
+
+    int len = strlen(buffer) + 1;
+    char *clipboard_text = (char*)malloc(len);
+    if (clipboard_text)
+        memcpy(clipboard_text, buffer, len);
+
+    GlobalUnlock(object);
+    CloseClipboard();
+
+    return clipboard_text;
 }
 
 bool cri_wait_sync(cri_window *window) {

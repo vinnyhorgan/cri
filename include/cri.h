@@ -18,6 +18,9 @@ void cri_set_user_data(cri_window *window, void *user_data);
 void *cri_get_user_data(cri_window *window);
 
 bool cri_set_viewport(cri_window *window, int ox, int oy, int width, int height);
+void cri_set_clipboard_text(const char *text);
+const char *cri_get_clipboard_text();
+
 void *cri_read_file(const char *filename, int *size);
 void cri_write_file(const char *filename, const void *data, int size);
 bool cri_file_exists(const char *filename);
