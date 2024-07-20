@@ -218,6 +218,28 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
         }
         break;
 
+    case WM_DROPFILES:
+        if (window_data) {
+            HDROP drop = (HDROP)wparam;
+            int count = DragQueryFile(drop, 0xffffffff, NULL, 0);
+            char **paths = (char**)calloc(count, sizeof(char*));
+
+            for (int i = 0; i < count; i++) {
+                UINT size = DragQueryFile(drop, i, NULL, 0);
+                paths[i] = (char*)calloc(size + 1, sizeof(char));
+                DragQueryFile(drop, i, paths[i], size + 1);
+            }
+
+            cri_call(drop_cb, count, (const char**)paths);
+
+            for (int i = 0; i < count; i++)
+                free(paths[i]);
+            free(paths);
+
+            DragFinish(drop);
+        }
+        break;
+
     case WM_SETCURSOR:
         if (window_data->hide_cursor && LOWORD(lparam) == HTCLIENT) {
             SetCursor(0);
@@ -304,6 +326,8 @@ cri_window *cri_open(const char *title, int width, int height, int flags) {
 
     window_data_win->hdc = GetDC(window_data_win->hwnd);
     window_data_win->timer = cri_timer_create();
+
+    DragAcceptFiles(window_data_win->hwnd, TRUE);
 
     return (cri_window*)window_data;
 }

@@ -16,6 +16,7 @@ typedef struct {
     cri_mouse_button_cb mouse_button_cb;
     cri_mouse_move_cb mouse_move_cb;
     cri_mouse_scroll_cb mouse_scroll_cb;
+    cri_drop_cb drop_cb;
 
     int window_width;
     int window_height;

@@ -37,6 +37,7 @@ void cri_set_char_input_cb(cri_window *window, cri_char_input_cb cb);
 void cri_set_mouse_button_cb(cri_window *window, cri_mouse_button_cb cb);
 void cri_set_mouse_move_cb(cri_window *window, cri_mouse_move_cb cb);
 void cri_set_mouse_scroll_cb(cri_window *window, cri_mouse_scroll_cb cb);
+void cri_set_drop_cb(cri_window *window, cri_drop_cb cb);
 
 bool cri_is_window_active(cri_window *window);
 int cri_get_window_width(cri_window *window);

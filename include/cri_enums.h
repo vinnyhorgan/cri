@@ -172,6 +172,7 @@ typedef void(*cri_char_input_cb)(cri_window *window, unsigned int code);
 typedef void(*cri_mouse_button_cb)(cri_window *window, cri_mouse_button button, cri_mod_key mod, bool is_pressed);
 typedef void(*cri_mouse_move_cb)(cri_window *window, int x, int y);
 typedef void(*cri_mouse_scroll_cb)(cri_window *window, cri_mod_key mod, float dx, float dy);
+typedef void(*cri_drop_cb)(cri_window *window, int count, const char **paths);
 
 typedef void(*cri_audio_cb)(float *buffer, int frames, int channels, void *user_data);
 

@@ -187,6 +187,13 @@ void cri_set_mouse_scroll_cb(cri_window *window, cri_mouse_scroll_cb cb) {
     }
 }
 
+void cri_set_drop_cb(cri_window *window, cri_drop_cb cb) {
+    if (window) {
+        s_cri_window_data *window_data = (s_cri_window_data*)window;
+        window_data->drop_cb = cb;
+    }
+}
+
 bool cri_is_window_active(cri_window *window) {
     if (window) {
         s_cri_window_data *window_data = (s_cri_window_data*)window;
