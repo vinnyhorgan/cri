@@ -22,16 +22,18 @@ void cri_set_clipboard_text(const char *text);
 const char *cri_get_clipboard_text();
 
 void *cri_read_file(const char *filename, int *size);
-void cri_write_file(const char *filename, const void *data, int size);
+bool cri_write_file(const char *filename, const void *data, int size);
 bool cri_file_exists(const char *filename);
 bool cri_dir_exists(const char *dirname);
 int cri_get_file_size(const char *filename);
 long cri_get_file_mod_time(const char *filename);
 char **cri_get_dir_files(const char *dirname, int *count);
 void cri_free_dir_files(char **files, int count);
+bool cri_chdir(const char *dirname);
 
 void cri_set_active_cb(cri_window *window, cri_active_cb cb);
 void cri_set_resize_cb(cri_window *window, cri_resize_cb cb);
+void cri_set_close_cb(cri_window *window, cri_close_cb cb);
 void cri_set_keyboard_cb(cri_window *window, cri_keyboard_cb cb);
 void cri_set_char_input_cb(cri_window *window, cri_char_input_cb cb);
 void cri_set_mouse_button_cb(cri_window *window, cri_mouse_button_cb cb);
@@ -50,6 +52,7 @@ const uint8_t *cri_get_keyboard_state(cri_window *window);
 const uint8_t *cri_get_mouse_state(cri_window *window);
 
 void cri_set_target_fps(int fps);
+int cri_get_target_fps();
 bool cri_wait_sync(cri_window *window);
 
 cri_timer *cri_timer_create();

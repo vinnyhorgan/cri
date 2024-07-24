@@ -155,18 +155,16 @@ typedef enum {
 } cri_mod_key;
 
 typedef enum {
-    FLAG_RESIZABLE = 0x01,
+    FLAG_RESIZABLE  = 0x01,
     FLAG_HIDECURSOR = 0x02
 } cri_flags;
 
-struct cri_window;
 typedef struct cri_window cri_window;
-
-struct cri_timer;
 typedef struct cri_timer cri_timer;
 
 typedef void(*cri_active_cb)(cri_window *window, bool is_active);
 typedef void(*cri_resize_cb)(cri_window *window, int width, int height);
+typedef bool(*cri_close_cb)(cri_window *window);
 typedef void(*cri_keyboard_cb)(cri_window *window, cri_key key, cri_mod_key mod, bool is_pressed);
 typedef void(*cri_char_input_cb)(cri_window *window, unsigned int code);
 typedef void(*cri_mouse_button_cb)(cri_window *window, cri_mouse_button button, cri_mod_key mod, bool is_pressed);

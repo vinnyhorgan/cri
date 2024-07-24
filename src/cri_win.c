@@ -49,9 +49,25 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
         break;
 
     case WM_DESTROY:
-    case WM_CLOSE:
         if (window_data) {
             window_data->close = true;
+        }
+        break;
+
+    case WM_CLOSE:
+        if (window_data) {
+            bool destroy = false;
+
+            if (!window_data->close_cb || window_data->close_cb((cri_window*)window_data)) {
+                destroy = true;
+            }
+
+            if (destroy) {
+                window_data->close = true;
+                if (window_data_win) {
+                    DestroyWindow(window_data_win->hwnd);
+                }
+            }
         }
         break;
 

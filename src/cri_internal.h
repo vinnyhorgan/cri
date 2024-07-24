@@ -11,6 +11,7 @@ typedef struct {
 
     cri_active_cb active_cb;
     cri_resize_cb resize_cb;
+    cri_close_cb close_cb;
     cri_keyboard_cb keyboard_cb;
     cri_char_input_cb char_input_cb;
     cri_mouse_button_cb mouse_button_cb;

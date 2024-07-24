@@ -1,20 +1,22 @@
 #include "cri.h"
 #include "cri_internal.h"
 
-#define SOKOL_AUDIO_IMPL
-#include "sokol_audio.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <sys/stat.h>
 
 #ifdef _WIN32
 #include "dirent.h"
+#include <direct.h>
+#define chdir _chdir
 #else
 #include <dirent.h>
+#include <unistd.h>
 #endif
+
+#define SOKOL_AUDIO_IMPL
+#include "sokol_audio.h"
 
 short int g_keycodes[512];
 double g_timer_res;
@@ -59,11 +61,12 @@ void *cri_read_file(const char *filename, int *size) {
     return buf;
 }
 
-void cri_write_file(const char *filename, const void *data, int size) {
+bool cri_write_file(const char *filename, const void *data, int size) {
     FILE *fp = fopen(filename, "wb");
-    if (!fp) { return; }
-    fwrite(data, 1, size, fp);
+    if (!fp) { return false; }
+    int n = fwrite(data, 1, size, fp);
     fclose(fp);
+    return n == size;
 }
 
 bool cri_file_exists(const char *filename) {
@@ -138,6 +141,10 @@ void cri_free_dir_files(char **files, int count) {
     free(files);
 }
 
+bool cri_chdir(const char *dirname) {
+    return chdir(dirname) == 0;
+}
+
 void cri_set_active_cb(cri_window *window, cri_active_cb cb) {
     if (window) {
         s_cri_window_data *window_data = (s_cri_window_data*)window;
@@ -149,6 +156,13 @@ void cri_set_resize_cb(cri_window *window, cri_resize_cb cb) {
     if (window) {
         s_cri_window_data *window_data = (s_cri_window_data*)window;
         window_data->resize_cb = cb;
+    }
+}
+
+void cri_set_close_cb(cri_window *window, cri_close_cb cb) {
+    if (window) {
+        s_cri_window_data *window_data = (s_cri_window_data*)window;
+        window_data->close_cb = cb;
     }
 }
 
@@ -271,6 +285,14 @@ void cri_set_target_fps(int fps) {
         g_time_per_frame = 0;
     } else {
         g_time_per_frame = 1.0 / fps;
+    }
+}
+
+int cri_get_target_fps() {
+    if (g_time_per_frame == 0) {
+        return 0;
+    } else {
+        return 1.0 / g_time_per_frame;
     }
 }
 
