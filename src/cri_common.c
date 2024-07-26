@@ -347,10 +347,11 @@ double cri_timer_dt(cri_timer *timer) {
     return dt * g_timer_res;
 }
 
-bool cri_open_audio(int sample_rate, int channels, cri_audio_cb cb, void *user_data) {
+bool cri_open_audio(int sample_rate, int channels, int samples, cri_audio_cb cb, void *user_data) {
     saudio_setup(&(saudio_desc){
         .sample_rate = sample_rate,
         .num_channels = channels,
+        .buffer_frames = samples,
         .stream_userdata_cb = cb,
         .user_data = user_data
     });

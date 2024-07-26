@@ -12,6 +12,7 @@ extern "C" {
 
 cri_window *cri_open(const char *title, int width, int height, int flags);
 int cri_update(cri_window *window, void *buffer, int width, int height);
+int cri_update_events(cri_window *window);
 void cri_close(cri_window *window);
 
 void cri_set_user_data(cri_window *window, void *user_data);
@@ -61,7 +62,7 @@ void cri_timer_reset(cri_timer *timer);
 double cri_timer_now(cri_timer *timer);
 double cri_timer_dt(cri_timer *timer);
 
-bool cri_open_audio(int sample_rate, int channels, cri_audio_cb cb, void *user_data);
+bool cri_open_audio(int sample_rate, int channels, int samples, cri_audio_cb cb, void *user_data);
 void cri_close_audio();
 int cri_get_audio_sample_rate();
 int cri_get_audio_channels();

@@ -381,6 +381,27 @@ int cri_update(cri_window *window, void *buffer, int width, int height) {
     return 0;
 }
 
+int cri_update_events(cri_window *window) {
+    if (!window)
+        return 1;
+
+    s_cri_window_data *window_data = (s_cri_window_data*)window;
+    s_cri_window_data_win *window_data_win = (s_cri_window_data_win*)window_data->specific;
+
+    if (window_data->close) {
+        s_cri_destroy_window_data(window_data);
+        return 1;
+    }
+
+    MSG msg;
+    while (!window_data->close && PeekMessage(&msg, window_data_win->hwnd, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    return 0;
+}
+
 bool cri_set_viewport(cri_window *window, int ox, int oy, int width, int height) {
     s_cri_window_data *window_data = (s_cri_window_data*)window;
 
